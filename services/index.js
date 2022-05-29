@@ -7,6 +7,7 @@ import { splitArray } from "../utils/index.js";
 sanitizeHtml.defaults.allowedTags.push("img");
 
 export const getStoryInfo = async (storyId) => {
+  // Full api URL: https://www.wattpad.com/api/v3/stories/292169908?fields=id,title,description,url,cover,isPaywalled,user(name,username,avatar),lastPublishedPart,parts(id,title,text_url),tags
   try {
     const info = await fetch(
       `https://www.wattpad.com/api/v3/stories/${storyId}?fields=id,title,description,url,cover,isPaywalled,user(name,username,avatar),lastPublishedPart,parts(id,title,text_url),tags`

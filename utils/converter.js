@@ -1,9 +1,8 @@
-import { getHTMLParts, getHTMLPartsForEpub } from "../services/index.js";
+import { getHTMLParts, getHTMLPartsWithLocalImage } from "../services/index.js";
 import { htmlTemplate, pdfTemplate } from "../templates/index.js";
 
-import Epub from "epub-gen";
 import chalk from "chalk";
-import { execFileSync } from "child_process";
+import { execSync } from "child_process";
 import { fileURLToPath } from "url";
 import fs from "fs";
 import ora from "ora";
@@ -18,7 +17,7 @@ export const convertHTMLFile = async (info) => {
   const htmlParts = await getHTMLParts(info);
 
   fs.writeFileSync(
-    "./output.html",
+    `.output/${info.title}.html`,
     htmlTemplate
       .replace("{{title}}", info.title)
       .replace("{{content}}", htmlParts.join("\n"))
@@ -41,10 +40,11 @@ export const convertPDFFile = async (info) => {
         pdfTemplate
           .replace("{{title}}", info.title)
           .replace("{{content}}", htmlParts.join("\n")),
-        { format: "A4", quality: "100" }
+        { format: "A4", quality: "100", timeout: 999999999 }
       )
-      .toFile("./output.pdf", (err, response) => {
+      .toFile(`.output/${info.title}.pdf`, (err, response) => {
         if (err) {
+          console.log(err);
           console.log(`\n${chalk.red("✖")} Failed to generate PDF file`);
           process.exit(1);
         }
@@ -57,66 +57,101 @@ export const convertPDFFile = async (info) => {
 };
 
 export const convertEpubFile = async (info) => {
-  const htmlParts = await getHTMLPartsForEpub(info);
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${info.title}</title>
+</head>
+<body>
+  ${(await getHTMLPartsWithLocalImage(info))
+    .map((item) => `<h1>${item.title}</h1>\n${item.data}`)
+    .join("\n")}
+</body>
+</html>
+    `;
 
-  const consoleLog = console.log;
-  console.log = () => {};
+  const htmlFilePath = path.resolve(
+    __dirname,
+    "..",
+    `output/${info.title}-temp.html`
+  );
+  const outputFilePath = path.resolve(
+    __dirname,
+    "..",
+    `output/${info.title}.epub`
+  );
 
-  const generateEpubSpinner = ora({
-    text: "Generating Epub...",
+  fs.writeFileSync(htmlFilePath, html, { encoding: "utf-8" });
+
+  const epubConversionSpinner = ora({
+    text: "Generating Epub file...",
     hideCursor: false,
   }).start();
 
-  await new Promise((resolve, reject) => {
-    new Epub(
+  try {
+    execSync(
+      `ebook-convert "${htmlFilePath}" "${outputFilePath}" --authors "Wattpad" --output-profile kindle_pw3 --disable-font-rescaling --cover "${info.cover}" --title "${info.title}"`,
       {
-        title: info.title,
-        author: "Wattpad",
-        cover: info.cover,
-        version: 2,
-        content: htmlParts,
-      },
-      "./output.epub"
-    ).promise.then(
-      () => {
-        console.log = consoleLog;
-        generateEpubSpinner.succeed("Generated Epub file successfully");
-        resolve();
-      },
-      (err) => {
-        console.error("Failed to generate Ebook because of ", err);
-
-        console.log(`\n${chalk.red("✖")} Failed to generate Epub file`);
-        process.exit(1);
+        cwd: path.resolve(__dirname, ".."),
       }
     );
-  });
+
+    epubConversionSpinner.succeed("Epub conversion succeeded...");
+  } catch (error) {
+    console.log(error);
+    epubConversionSpinner.fail("Epub conversion failed...");
+  }
 };
 
 export const convertMobiFile = async (info) => {
-  if (!["darwin", "linux", "win32"].includes(process.platform)) {
-    console.log(
-      `\n${chalk.red(
-        "✖"
-      )} Unsupported operating system for converting Mobi file`
-    );
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${info.title}</title>
+</head>
+<body>
+  ${(await getHTMLPartsWithLocalImage(info))
+    .map((item) => `<h1>${item.title}</h1>\n${item.data}`)
+    .join("\n")}
+</body>
+</html>
+    `;
 
-    process.exit(1);
-  }
-
-  await convertEpubFile(info);
-
-  const binaryPath = path.resolve(
+  const htmlFilePath = path.resolve(
     __dirname,
     "..",
-    "binaries",
-    process.platform,
-    process.platform === "win32" ? "kindlegen.exe" : "kindlegen"
+    `output/${info.title}-temp.html`
+  );
+  const outputFilePath = path.resolve(
+    __dirname,
+    "..",
+    `output/${info.title}.mobi`
   );
 
-  execFileSync(binaryPath, [path.resolve(__dirname, "..", "output.epub")], {
-    cwd: path.resolve(__dirname, ".."),
-    stdio: "inherit",
-    input: "",
-  });
+  fs.writeFileSync(htmlFilePath, html, { encoding: "utf-8" });
+
+  const mobiConversionSpinner = ora({
+    text: "Generating Mobi file...",
+    hideCursor: false,
+  }).start();
+
+  try {
+    execSync(
+      `ebook-convert "${htmlFilePath}" "${outputFilePath}" --authors "Wattpad" --output-profile kindle_pw3 --disable-font-rescaling --cover "${info.cover}" --title "${info.title}"`,
+      {
+        cwd: path.resolve(__dirname, ".."),
+      }
+    );
+
+    mobiConversionSpinner.succeed("Mobi conversion succeeded...");
+  } catch (error) {
+    console.log(error);
+    mobiConversionSpinner.fail("Mobi conversion failed...");
+  }
 };

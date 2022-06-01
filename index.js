@@ -6,12 +6,17 @@ import {
 } from "./utils/converter.js";
 
 import chalk from "chalk";
+import fs from "fs";
 import { getStoryInfo } from "./services/index.js";
 import inquirer from "inquirer";
+import { isCalibreAvailable } from "./utils/index.js";
 import ora from "ora";
 import sanitizeHtml from "sanitize-html";
 
 sanitizeHtml.defaults.allowedTags.push("img");
+
+fs.mkdirSync("output", { recursive: true });
+fs.mkdirSync("output/images", { recursive: true });
 
 let { storyId } = await inquirer.prompt({
   type: "input",
@@ -59,11 +64,13 @@ switch (format) {
   }
 
   case "epub": {
+    await isCalibreAvailable();
     await convertEpubFile(info);
     break;
   }
 
   case "mobi": {
+    await isCalibreAvailable();
     await convertMobiFile(info);
     break;
   }

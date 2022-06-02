@@ -17,7 +17,7 @@ export const convertHTMLFile = async (info) => {
   const htmlParts = await getHTMLParts(info);
 
   fs.writeFileSync(
-    `.output/${info.title}.html`,
+    path.resolve(__dirname, "..", "output", `${info.title}.html`),
     htmlTemplate
       .replace("{{title}}", info.title)
       .replace("{{content}}", htmlParts.join("\n"))

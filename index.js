@@ -44,11 +44,11 @@ const fetchingStoryInfoSpinner = ora({
   hideCursor: false,
 }).start();
 
+const info = await getStoryInfo(storyId);
+
 fetchingStoryInfoSpinner.succeed();
 
 console.time("🎉 Story download took");
-
-const info = await getStoryInfo(storyId);
 
 console.log(`\nDownload story: ${chalk.cyan(info.title)}\n`);
 

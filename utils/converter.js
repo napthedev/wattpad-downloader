@@ -42,17 +42,20 @@ export const convertPDFFile = async (info) => {
           .replace("{{content}}", htmlParts.join("\n")),
         { format: "A4", quality: "100", timeout: 999999999 }
       )
-      .toFile(`.output/${info.title}.pdf`, (err, response) => {
-        if (err) {
-          console.log(err);
-          console.log(`\n${chalk.red("✖")} Failed to generate PDF file`);
-          process.exit(1);
+      .toFile(
+        path.resolve(__dirname, "..", "output", `${info.title}.pdf`),
+        (err, response) => {
+          if (err) {
+            console.log(err);
+            console.log(`\n${chalk.red("✖")} Failed to generate PDF file`);
+            process.exit(1);
+          }
+
+          generatePDFSpinner.succeed("Generated PDF file successfully");
+
+          res(response);
         }
-
-        generatePDFSpinner.succeed("Generated PDF file successfully");
-
-        res(response);
-      });
+      );
   });
 };
 
